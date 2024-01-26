@@ -13,6 +13,14 @@ This is the authors' implementation of LININ (Logic Integrated Neural Inference 
   ```
 5. We provide the annotations of GQA-REX Dataset in `model/processed_data/converted_explanation_train_balanced.json` and `model/processed_data/converted_explanation_val_balanced.json`.
 6. (Optional) You can construct the GQA-REX Dataset by yourself following [instructions by its authors](https://github.com/szzexpoi/rex).
+7. Clean data using our script:
+  ```
+  python ./preprocessing/clean_questions.py
+  ```
+8. Run our FOL-based question analysis program to generate answer masks:
+  ```
+  python ./preprocessing/generate_ans_mask.py
+  ```
 
 ### Models
 We provide four models in `model/model/model.py`.
