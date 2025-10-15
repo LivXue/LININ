@@ -84,7 +84,7 @@ def convert_sents_to_features(sent, max_seq_length, tokenizer):
 
 
 class Batch_generator(data.Dataset):
-    def __init__(self, img_dir, que_dir, lang_dir, rl_dir, obj_dir, box_dir, max_qlen=18, max_exp_len=18, seq_len=20,
+    def __init__(self, img_dir, que_dir, lang_dir, box_dir, max_qlen=18, max_exp_len=18, seq_len=20,
                  mode='train', percentage=100, explainable=True):
         self.mode = mode
         self.img_dir = img_dir
@@ -96,7 +96,6 @@ class Batch_generator(data.Dataset):
         # selecting top answers
         self.ans2idx = json.load(open(os.path.join(lang_dir, 'ans2idx_all.json')))
         self.exp2idx = json.load(open(os.path.join(lang_dir, 'exp2idx.json')))
-        self.obj_info = json.load(open(os.path.join(obj_dir, 'obj_info.json')))
         if self.mode == 'train_submission':
             self.answer_mask = None
         else:
@@ -199,8 +198,6 @@ class Batch_generator(data.Dataset):
         question = self.Q[index]
         img_id = self.Img[index]
         qid = self.Qid[index]
-        obj_id = torch.tensor(self.obj_info[img_id]['objs'], dtype=torch.long)
-        attr_id = torch.tensor(self.obj_info[img_id]['attrs'], dtype=torch.long)
 
         if self.answer_mask is not None:
             if len(self.ansm[index]) > 0:
@@ -261,10 +258,9 @@ class Batch_generator(data.Dataset):
                 converted_gate = torch.zeros((1))
 
             return img, box, text_input.long(), token_type.long(), attention_mask.long(), converted_ans, converted_exp, \
-                   valid_mask, converted_gate, obj_id, attr_id, mask_ans
+                   valid_mask, converted_gate, mask_ans
         else:
-            return img, box, text_input.long(), token_type.long(), attention_mask.long(), qid, obj_id, attr_id, \
-                   mask_ans
+            return img, box, text_input.long(), token_type.long(), attention_mask.long(), qid, mask_ans
 
     def __len__(self, ):
         return len(self.Img)
@@ -272,7 +268,7 @@ class Batch_generator(data.Dataset):
 
 
 class Batch_generator_submission(data.Dataset):
-    def __init__(self, img_dir, que_dir, lang_dir, obj_dir, box_dir, seq_len=20, mode='submission_all'):
+    def __init__(self, img_dir, que_dir, lang_dir, box_dir, seq_len=20, mode='submission_all'):
         self.img_dir = img_dir
         self.seq_len = seq_len
         self.box_dir = box_dir
@@ -283,7 +279,6 @@ class Batch_generator_submission(data.Dataset):
         # self.question = json.load(open(os.path.join(que_dir, 'submission_all_questions_clean.json')))
         self.question = json.load(open(os.path.join(que_dir, '{}_questions_clean.json'.format(mode))))
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
-        self.obj_info = json.load(open(os.path.join(obj_dir, 'obj_info.json')))
         self.answer_mask = json.load(open(os.path.join(lang_dir, 'answer_mask_{}.json'.format(mode))))
         self.vanilla_mask_ans = np.zeros(len(self.ans2idx), dtype=np.bool)
         vanilla_mask_ans_id = [self.ans2idx[ans] for ans in detected_ans]
@@ -295,8 +290,6 @@ class Batch_generator_submission(data.Dataset):
         self.Q = []
         self.Img = []
         self.Qid = []
-        self.objs = []
-        self.attrs = []
         self.ansm = []
 
         for qid in self.question.keys():
@@ -316,8 +309,6 @@ class Batch_generator_submission(data.Dataset):
         question = self.Q[index]
         img_id = self.Img[index]
         qid = self.Qid[index]
-        obj_id = torch.tensor(self.obj_info[img_id]['objs'], dtype=torch.long)
-        attr_id = torch.tensor(self.obj_info[img_id]['attrs'], dtype=torch.long)
 
         if len(self.ansm[index]) > 0:
             mask_ans = torch.ones(len(self.ans2idx), dtype=torch.bool)
@@ -344,7 +335,7 @@ class Batch_generator_submission(data.Dataset):
         img = np.load(os.path.join(self.img_dir, str(img_id) + '.npy'))
         box = np.load(os.path.join('../preprocessing/data/extracted_features/box', str(img_id) + '.npy'))
 
-        return img, box, text_input.long(), token_type.long(), attention_mask.long(), qid, obj_id, attr_id, mask_ans
+        return img, box, text_input.long(), token_type.long(), attention_mask.long(), qid, mask_ans
 
     def __len__(self, ):
         return len(self.Img)

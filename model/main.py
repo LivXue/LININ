@@ -33,9 +33,6 @@ parser.add_argument('--ood_dir', type=str, default='./processed_data', help='Dir
 parser.add_argument('--lang_dir', type=str, default='./processed_data', help='Directory to preprocessed language files')
 parser.add_argument('--img_dir', type=str, default='../preprocessing/data/extracted_features/features', help='Directory to image features')
 parser.add_argument('--bbox_dir', type=str, default='../preprocessing/data/extracted_features/box', help='Directory to bounding box information')
-parser.add_argument('--rl_dir', type=str, default='./processed_data', help='Directory to region labels')
-parser.add_argument('--obj_dir', type=str, default='../preprocessing', help='Directory to object information')
-parser.add_argument('--emb_dir', type=str, default='../preprocessing/data', help='Directory to object/attribution embeddings')
 parser.add_argument('--checkpoint_dir', type=str, default='./checkpoints', help='Directory for saving checkpoint')
 parser.add_argument('--weights', type=str, default='./checkpoints/model_best_2022-10-29 14:32:38.pth', help='Trained model to be loaded (default: None)')
 parser.add_argument('--epoch', type=int, default=8, help='Defining maximal number of epochs')
@@ -74,9 +71,9 @@ def adjust_learning_rate(init_lr, optimizer, epoch):
 
 
 def main():
-    train_data = Batch_generator(args.img_dir, args.anno_dir, args.lang_dir, args.rl_dir, args.obj_dir, args.bbox_dir,
+    train_data = Batch_generator(args.img_dir, args.anno_dir, args.lang_dir, args.bbox_dir,
                                  args.max_qlen, args.max_exp_len, args.seq_len, 'train_balanced', args.percentage, args.explainable)
-    val_data = Batch_generator(args.img_dir, args.anno_dir, args.lang_dir, args.rl_dir, args.obj_dir, args.bbox_dir,
+    val_data = Batch_generator(args.img_dir, args.anno_dir, args.lang_dir,args.bbox_dir,
                                30, args.max_exp_len, 35, 'val_balanced', explainable=args.explainable)
 
     trainloader = DataLoader(train_data, batch_size=args.batch_size, drop_last=True, shuffle=True, num_workers=6)
@@ -117,21 +114,20 @@ def main():
     def train():
         model.train()
 
-        for batch_idx, (img, box, text_input, token_type, attention_mask, ans, exp, valid_mask, structure_gate, obj_id, attr_id, mask_ans) in tqdm(enumerate(trainloader)):
+        for batch_idx, (img, box, text_input, token_type, attention_mask, ans, exp, valid_mask, structure_gate, mask_ans) in tqdm(enumerate(trainloader)):
             #if len(img) < args.batch_size:
             #    continue
-            img, box, text_input, token_type, attention_mask, ans, exp, valid_mask, structure_gate, obj_id, attr_id, mask_ans = \
+            img, box, text_input, token_type, attention_mask, ans, exp, valid_mask, structure_gate, mask_ans = \
                 Variable(img), Variable(box), Variable(text_input), Variable(token_type), Variable(attention_mask), Variable(ans), \
-                Variable(exp), Variable(valid_mask), Variable(structure_gate), Variable(obj_id), \
-                Variable(attr_id), Variable(mask_ans)
-            img, box, text_input, token_type, attention_mask, ans, exp, valid_mask, structure_gate, obj_id, attr_id, mask_ans = \
+                Variable(exp), Variable(valid_mask), Variable(structure_gate), Variable(mask_ans)
+            img, box, text_input, token_type, attention_mask, ans, exp, valid_mask, structure_gate, mask_ans = \
                 img.cuda(), box.cuda(), text_input.cuda(), token_type.cuda(), attention_mask.cuda(), ans.cuda(), exp.cuda(), \
-                valid_mask.cuda(), structure_gate.cuda(), obj_id.cuda(), attr_id.cuda(), mask_ans.cuda()
+                valid_mask.cuda(), structure_gate.cuda(), mask_ans.cuda()
             optimizer.zero_grad()
 
             if not train_ans_mask:
                 mask_ans = None
-            pred_ans, pred, pred_structure = model(img, box, text_input, token_type, attention_mask, obj_id, attr_id, mask_ans, exp=exp)
+            pred_ans, pred, pred_structure = model(img, box, text_input, token_type, attention_mask, mask_ans, exp=exp)
             ans_loss = ans_cross_entropy(pred_ans, ans)
             if args.explainable:
                 exp_loss = args.beta * cross_entropy(pred, exp, valid_mask)
@@ -156,18 +152,16 @@ def main():
         answers = dict()
         exps = dict()
 
-        for batch_idx, (img, box, text_input, token_type, attention_mask, qid, obj_id, attr_id, mask_ans) in tqdm(enumerate(valloader)):
-            img, box, text_input, token_type, attention_mask, obj_id, attr_id, mask_ans = \
-                Variable(img), Variable(box), Variable(text_input), Variable(token_type), Variable(attention_mask), \
-                Variable(obj_id), Variable(attr_id), Variable(mask_ans)
-            img, box, text_input, token_type, attention_mask, obj_id, attr_id, mask_ans = \
-                img.cuda(), box.cuda(), text_input.cuda(), token_type.cuda(), attention_mask.cuda(), obj_id.cuda(), \
-                attr_id.cuda(), mask_ans.cuda()
+        for batch_idx, (img, box, text_input, token_type, attention_mask, qid, mask_ans) in tqdm(enumerate(valloader)):
+            img, box, text_input, token_type, attention_mask, mask_ans = \
+                Variable(img), Variable(box), Variable(text_input), Variable(token_type), Variable(attention_mask), Variable(mask_ans)
+            img, box, text_input, token_type, attention_mask, mask_ans = \
+                img.cuda(), box.cuda(), text_input.cuda(), token_type.cuda(), attention_mask.cuda(), mask_ans.cuda()
 
             if not val_ans_mask:
                 mask_ans = None
             with torch.no_grad():
-                raw_pred, pred, pred_structure = model(img, box, text_input, token_type, attention_mask, obj_id, attr_id, mask_ans)
+                raw_pred, pred, pred_structure = model(img, box, text_input, token_type, attention_mask, mask_ans)
 
             # computing accuracy
             raw_pred = raw_pred.data.cpu().numpy()
@@ -249,7 +243,7 @@ def main():
 
 
 def evaluation():
-    test_data = Batch_generator(args.img_dir, args.anno_dir, args.lang_dir, args.rl_dir, args.obj_dir, args.bbox_dir,
+    test_data = Batch_generator(args.img_dir, args.anno_dir, args.lang_dir, args.bbox_dir,
                                 30, args.max_exp_len, 35, 'testdev_balanced', explainable=args.explainable)
     testloader = DataLoader(test_data, batch_size=128, drop_last=False, shuffle=False, num_workers=6)
 
@@ -286,14 +280,14 @@ def evaluation():
     total_acc = []
     answers = dict()
 
-    for batch_idx, (img, box, text_input, token_type, attention_mask, qid, obj_id, attr_id, mask_ans) in enumerate(testloader):
-        img, box, text_input, token_type, attention_mask, obj_id, attr_id, mask_ans = Variable(img), Variable(box), Variable(text_input), Variable(
-            token_type), Variable(attention_mask), Variable(obj_id), Variable(attr_id), Variable(mask_ans)
-        img, box, text_input, token_type, attention_mask, obj_id, attr_id, mask_ans = \
-            img.cuda(), box.cuda(), text_input.cuda(), token_type.cuda(), attention_mask.cuda(), obj_id.cuda(), attr_id.cuda(), mask_ans.cuda()
+    for batch_idx, (img, box, text_input, token_type, attention_mask, qid, mask_ans) in enumerate(testloader):
+        img, box, text_input, token_type, attention_mask, mask_ans = Variable(img), Variable(box), Variable(text_input), Variable(
+            token_type), Variable(attention_mask), Variable(mask_ans)
+        img, box, text_input, token_type, attention_mask, mask_ans = \
+            img.cuda(), box.cuda(), text_input.cuda(), token_type.cuda(), attention_mask.cuda(), mask_ans.cuda()
 
         with torch.no_grad():
-            pred_ans, pred, pred_structure = model(img, box, text_input, token_type, attention_mask, obj_id, attr_id, mask_ans)
+            pred_ans, pred, pred_structure = model(img, box, text_input, token_type, attention_mask, mask_ans)
 
         # computing accuracy
         pred_ans = pred_ans.data.cpu().numpy()
@@ -328,7 +322,7 @@ def evaluation():
 
 
 def submission():
-    test_data = Batch_generator_submission(args.img_dir, args.anno_dir, args.lang_dir, args.obj_dir, args.bbox_dir, 35, mode='submission_all')
+    test_data = Batch_generator_submission(args.img_dir, args.anno_dir, args.lang_dir, args.bbox_dir, 35, mode='submission_all')
     testloader = torch.utils.data.DataLoader(test_data, batch_size=128, shuffle=False, num_workers=6)
 
     ans2idx = test_data.ans2idx
@@ -351,14 +345,14 @@ def submission():
 
     model.eval()
     submission = []
-    for batch_idx, (img, box, text_input, token_type, attention_mask, qid, obj_id, attr_id, mask_ans) in tqdm(enumerate(testloader)):
-        img, box, text_input, token_type, attention_mask, obj_id, attr_id, mask_ans = \
-            Variable(img), Variable(box), Variable(text_input), Variable(token_type), Variable(attention_mask), Variable(obj_id), Variable(attr_id), Variable(mask_ans)
-        img, box, text_input, token_type, attention_mask, obj_id, attr_id, mask_ans = \
-            img.cuda(), box.cuda(), text_input.cuda(), token_type.cuda(), attention_mask.cuda(), obj_id.cuda(), attr_id.cuda(), mask_ans.cuda()
+    for batch_idx, (img, box, text_input, token_type, attention_mask, qid, mask_ans) in tqdm(enumerate(testloader)):
+        img, box, text_input, token_type, attention_mask, mask_ans = \
+            Variable(img), Variable(box), Variable(text_input), Variable(token_type), Variable(attention_mask), Variable(mask_ans)
+        img, box, text_input, token_type, attention_mask, mask_ans = \
+            img.cuda(), box.cuda(), text_input.cuda(), token_type.cuda(), attention_mask.cuda(), mask_ans.cuda()
         #mask_ans = None
         with torch.no_grad():
-            pred_ans, pred, pred_structure = model(img, box, text_input, token_type, attention_mask, obj_id, attr_id, mask_ans)
+            pred_ans, pred, pred_structure = model(img, box, text_input, token_type, attention_mask, mask_ans)
 
         # computing accuracy
         pred_ans = pred_ans.data.cpu().numpy()
