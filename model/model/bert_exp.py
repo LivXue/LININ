@@ -316,9 +316,67 @@ class LXMERT_REX(nn.Module):
             return output_ans, output_sent
 
 
-class LXMERTRegion(nn.Module):
+class VisualBert_LININ(nn.Module):
     def __init__(self, num_roi=36, nb_answer=2000, nb_vocab=2000, nb_pro=2000, num_step=18, lang_dir=None, args=None, explainable=True):
-        super(LXMERTRegion, self).__init__()
+        super(VisualBert_LININ, self).__init__()
+        self.nb_vocab = nb_vocab
+        self.nb_pro = nb_pro
+        self.num_roi = num_roi
+        self.nb_answer = nb_answer
+        self.num_step = num_step
+        self.img_size = 2048
+        self.hidden_size = 768
+        self.num_head = 4
+        self.explainable = explainable
+        self.args = args
+        base_model = VisualBertModel.from_pretrained('uclanlp/visualbert-vqa-coco-pre')
+
+        self.embedding = base_model.embeddings
+        self.bert_encoder = base_model.encoder
+        self.ans_cls = nn.Sequential(nn.Linear(768, 768 * 2),
+                                     nn.GELU(),
+                                     nn.LayerNorm(768 * 2),
+                                     nn.Linear(768 * 2, self.nb_answer))
+
+        for module in [self.embedding, self.bert_encoder]:
+            for para in module.parameters():
+                para.requires_grad = True  # fixed pretrained or not
+
+        # language generator
+        if explainable:
+            self.exp_generator = ExpGenerator(num_roi, nb_vocab, lang_dir, max_len=num_step)
+
+    def forward(self, img, box, text_input, token_type, attention_mask, mask_ans=None, exp=None):
+        embedding = self.embedding(input_ids=text_input, token_type_ids=token_type, visual_embeds=img)
+        visual_mask = torch.ones(len(embedding), self.num_roi).cuda()
+        concat_mask = torch.cat((attention_mask, visual_mask,), dim=1)
+        # concat_mask = self.create_att_mask(len(embedding),attention_mask, embedding.device)
+
+        # manually create attention mask for bert encoder (copy from PreTrainedModel's function)
+        extended_mask = concat_mask[:, None, None, :]
+        extended_mask = (1.0 - extended_mask) * -10000.0
+
+        bert_feat = self.bert_encoder(embedding, extended_mask)[0]
+        que_feat = bert_feat[:, :int(self.num_roi), :].contiguous()
+        visual_feat = bert_feat[:, -int(self.num_roi):, :].contiguous()
+        cls_feat = bert_feat[:, 0]
+
+        if mask_ans is None:
+            mask_ans = 1
+
+        if self.explainable:
+            pred_pro, pred_output, structure_gates = self.exp_generator(exp, que_feat, visual_feat, concat_mask)
+            output_ans_final = self.ans_cls(cls_feat) - (1 - mask_ans) * 1e6
+        else:
+            pred_pro, structure_gates = None, None
+            output_ans_final = self.ans_cls(cls_feat)
+        
+        return output_ans_final, pred_pro, structure_gates
+
+
+class LXMERT_LININ(nn.Module):
+    def __init__(self, num_roi=36, nb_answer=2000, nb_vocab=2000, nb_pro=2000, num_step=18, lang_dir=None, args=None, explainable=True):
+        super(LXMERT_LININ, self).__init__()
         self.nb_vocab = nb_vocab
         self.nb_pro = nb_pro
         self.num_roi = num_roi

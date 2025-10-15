@@ -37,18 +37,6 @@ detected_ans = ['yes', 'no', 'dark', 'brown', 'blond', 'blue', 'green', 'yellow'
                 'cream colored', 'maroon', 'dark blue', 'khaki', 'teal', 'brunette', 'left', 'right', 'large', 'small',
                 'huge', 'little', 'giant', 'tiny', 'young', 'old', 'long', 'short', 'tall']
 
-obj_vocab = dict()
-with open('../preprocessing/data/vg_gqa_imgfeat/objects_vocab.txt') as f:
-    for i, line in enumerate(f):
-        line = line.rstrip('\n')
-        names = line.split(',')
-        if len(names) == 1 or len(names[0].split(' ')) == 1:
-            obj_vocab[i] = names[0]
-        elif len(names[1].split(' ')) == 1:
-            obj_vocab[i] = names[1]
-        else:
-            obj_vocab[i] = names[0]
-
 
 def convert_sents_to_features(sent, max_seq_length, tokenizer):
     """Loads a data file into a list of `InputBatch`s."""

@@ -10,7 +10,7 @@ import torch.optim as optim
 from dataloader import Batch_generator, Batch_generator_submission
 from torch.utils.data import DataLoader
 from evaluation import organize_eval_data, construct_sentence, Grounding_Evaluator, Attribute_Evaluator
-from bert_exp import VisualBert_REX, VisualBertRegion, LXMERTRegion
+from bert_exp import VisualBert_REX, VisualBert_LININ, LXMERT_LININ
 from torch.autograd import Variable
 from torch.nn.utils import clip_grad_norm_
 import numpy as np
@@ -49,7 +49,7 @@ parser.add_argument('--percentage', type=int, default=100, help='percentage of t
 parser.add_argument('--explainable', type=bool, default=True, help='if generating explanations')
 
 args = parser.parse_args()
-os.environ['CUDA_VISIBLE_DEVICES'] = '5,6'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
 
 NetSeed = 128
 # random.seed(NetSeed)
@@ -101,7 +101,7 @@ def main():
     # initialize evaluator for attributes
     attribute_evaluator = Attribute_Evaluator(args.lang_dir)
 
-    model = LXMERTRegion(nb_answer=len(ans2idx), nb_vocab=len(exp2idx), num_step=args.max_exp_len,
+    model = LXMERT_LININ(nb_answer=len(ans2idx), nb_vocab=len(exp2idx), num_step=args.max_exp_len,
                          lang_dir=args.lang_dir, emb_dir=args.emb_dir, explainable=args.explainable)
 
     model = model.cuda()
@@ -263,7 +263,7 @@ def evaluation():
     for k in exp2idx:
         idx2exp[exp2idx[k]] = k
 
-    model = LXMERTRegion(nb_answer=len(ans2idx), nb_vocab=len(exp2idx), num_step=args.max_exp_len,
+    model = LXMERT_LININ(nb_answer=len(ans2idx), nb_vocab=len(exp2idx), num_step=args.max_exp_len,
                          lang_dir=args.lang_dir, emb_dir=args.emb_dir, explainable=args.explainable)
 
     if args.mode == 'train':
@@ -337,7 +337,7 @@ def submission():
     for k in exp2idx:
         idx2exp[exp2idx[k]] = k
 
-    model = LXMERTRegion(nb_answer=len(ans2idx), nb_vocab=len(exp2idx), num_step=args.max_exp_len,
+    model = LXMERT_LININ(nb_answer=len(ans2idx), nb_vocab=len(exp2idx), num_step=args.max_exp_len,
                          lang_dir=args.lang_dir, emb_dir=args.emb_dir, explainable=args.explainable)
     model.load_state_dict(torch.load(args.weights))
     model = nn.DataParallel(model)
