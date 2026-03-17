@@ -36,7 +36,7 @@ if __name__ == '__main__':
     length = dict()
     height = dict()
 
-    for split in ['testdev_all']:#['train_balanced', 'val_balanced', 'testdev_balanced']:#['submission_all', 'test_all']:
+    for split in ['train_balanced', 'val_balanced', 'testdev_balanced']:#['submission_all', 'test_all']:
         Q = json.load(open('../model/processed_data/' + split + '_questions_clean.json'))
         ans_mask = dict()
         que_type = dict()
