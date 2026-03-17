@@ -414,11 +414,11 @@ class LXMERT_LININ(nn.Module):
         cls_feat = pooled_output
 
         if mask_ans is None:
-            mask_ans = 1
+            mask_ans = 0
 
         if self.explainable:
             pred_pro, pred_output, structure_gates = self.exp_generator(exp, que_feat, visual_feat, concat_mask)
-            output_ans_final = self.ans_cls(cls_feat) - (1 - mask_ans) * 1e6
+            output_ans_final = self.ans_cls(cls_feat) - mask_ans * 1e6
         else:
             pred_pro, structure_gates = None, None
             output_ans_final = self.ans_cls(cls_feat)
