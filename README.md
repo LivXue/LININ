@@ -114,7 +114,3 @@ If you find this work useful, please cite our paper:
 
 ## 📝 License
 This project is licensed under the MIT License.
-
----
-
-**Note**: Please fill in the citation information with your paper's details.
