@@ -7,7 +7,7 @@
 ## 📄 Paper
 This repository contains the official implementation of the paper:  
 **[LININ: Logic Integrated Neural Inference Network for Explanatory Visual Question Answering](https://ieeexplore.ieee.org/document/10814657)**  
-Published at IEEE, 2024
+Published at IEEE Transactions on Multimedia, 2024
 
 ---
 
